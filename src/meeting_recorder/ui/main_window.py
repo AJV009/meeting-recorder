@@ -586,8 +586,17 @@ class MainWindow(Gtk.ApplicationWindow):
         except Exception:
             pass
 
+    def present(self) -> None:
+        """Show window and restore taskbar entry."""
+        self.set_skip_taskbar_hint(False)
+        super().present()
+
+    def hide_to_tray(self) -> None:
+        """Hide window and remove from taskbar — app stays alive in system tray."""
+        self.set_skip_taskbar_hint(True)
+        self.hide()
+
     def _on_delete(self, *_) -> bool:
-        # If recording, stop before exit
-        if self._recorder:
-            self._recorder.stop()
-        return False
+        # Hide to tray instead of closing; recording continues uninterrupted
+        self.hide_to_tray()
+        return True  # suppress destruction

@@ -160,7 +160,11 @@ class _IndicatorTray:
 
     def _on_quit(self) -> None:
         from gi.repository import GLib
-        GLib.idle_add(self._window.get_application().quit)
+        def _do_quit():
+            if self._window._recorder:
+                self._window._recorder.stop()
+            self._window.get_application().quit()
+        GLib.idle_add(_do_quit)
 
 
 class _PystrayTray:
@@ -218,9 +222,16 @@ class _PystrayTray:
         items.append(pystray.MenuItem("Show Window",
             lambda *_: idle_call(self._window.present)))
         items.append(pystray.MenuItem("Quit",
-            lambda *_: idle_call(self._window.get_application().quit)))
+            lambda *_: self._do_quit()))
 
         return pystray.Menu(*items)
+
+    def _do_quit(self) -> None:
+        def _quit():
+            if self._window._recorder:
+                self._window._recorder.stop()
+            self._window.get_application().quit()
+        idle_call(_quit)
 
     def set_state(self, state: str) -> None:
         self._state = state

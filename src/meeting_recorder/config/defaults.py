@@ -91,13 +91,14 @@ Audio channel layout:
 Use this channel information to distinguish speakers. Label each speaker turn with a \
 timestamp and speaker label on a new line, for example:
 
-[00:00:05] **You:** Hello, can everyone hear me?
-[00:00:09] **Speaker 2:** Yes, loud and clear.
+[00:00:05] **Alice:** Hello, can everyone hear me?
+[00:00:09] **Bob:** Yes, loud and clear.
 
 Rules:
-- Use **You:** for the left-channel (local mic) speaker.
-- Use the person's name if you can infer it from the conversation; otherwise use \
-**Speaker 2:**, **Speaker 3:**, etc.
+- Try to infer each speaker's name from the conversation (e.g. if someone is addressed \
+by name or introduces themselves). Use that name as their label.
+- If a name cannot be determined, label speakers as **Person 1:**, **Person 2:**, etc., \
+assigned in the order they first speak. Use the same label consistently for the same speaker.
 - Start each new speaker turn on a new line.
 - Timestamps should be in [HH:MM:SS] format, incremented roughly every turn.
 - Transcribe faithfully in whatever language is spoken; do not translate.
@@ -113,13 +114,14 @@ Audio channel layout:
 Use this channel information to distinguish speakers. Label each speaker turn with a \
 timestamp and speaker label, for example:
 
-[00:00:05] **You:** Hello, can everyone hear me?
-[00:00:09] **Speaker 2:** Yes, loud and clear.
+[00:00:05] **Alice:** Hello, can everyone hear me?
+[00:00:09] **Bob:** Yes, loud and clear.
 
 Rules:
-- Use **You:** for the left-channel (local mic) speaker.
-- Use the person's name if you can infer it from the conversation; otherwise use \
-**Speaker 2:**, **Speaker 3:**, etc.
+- Try to infer each speaker's name from the conversation (e.g. if someone is addressed \
+by name or introduces themselves). Use that name as their label.
+- If a name cannot be determined, label speakers as **Person 1:**, **Person 2:**, etc., \
+assigned in the order they first speak. Use the same label consistently for the same speaker.
 - Timestamps in [HH:MM:SS] format.
 - Transcribe faithfully in whatever language is spoken; do not translate.
 

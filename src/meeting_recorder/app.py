@@ -55,6 +55,8 @@ class MeetingRecorderApp(Gtk.Application):
     def do_startup(self) -> None:
         Gtk.Application.do_startup(self)
         self._setup_logging()
+        # Prevent GTK from quitting when the window is hidden (tray-only mode)
+        self.hold()
 
     @staticmethod
     def _setup_logging() -> None:

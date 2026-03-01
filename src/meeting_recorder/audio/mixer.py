@@ -16,7 +16,7 @@ def build_ffmpeg_command(
     Build ffmpeg command that reads two raw audio pipes into a stereo MP3.
 
     Channel layout:
-      Left  (ch 0) = mic input    — the local speaker (you)
+      Left  (ch 0) = mic input    — the local speaker
       Right (ch 1) = system audio — remote participants
 
     Both pipes carry raw s16le, 44100 Hz, mono audio from parec.
