@@ -49,7 +49,11 @@ class MainWindow(Gtk.ApplicationWindow):
         self._transcript_path: Path | None = None
         self._notes_path: Path | None = None
         self._last_error: str | None = None
-        self._pipeline_gen = 0  # incremented each time a pipeline starts/cancels
+        # Generation counter used to cancel in-flight pipeline callbacks. Each time a
+        # pipeline starts, this is incremented and captured as gen_id. Background
+        # threads compare their gen_id to this before calling back to the UI; a mismatch
+        # means the user cancelled, and the result is silently discarded.
+        self._pipeline_gen = 0
 
         self._build_ui()
         self._transition(State.IDLE)
@@ -73,6 +77,9 @@ class MainWindow(Gtk.ApplicationWindow):
         self._info_bar.add_button("Retry", Gtk.ResponseType.OK)
         self._info_bar.add_button("Dismiss", Gtk.ResponseType.CLOSE)
         self._info_bar.connect("response", self._on_info_bar_response)
+        # set_no_show_all(True) prevents show_all() from making this visible by default.
+        # This has a GTK quirk: it also blocks show_all() called on the InfoBar *itself*,
+        # so we must call info_bar.show() + label.show() explicitly in _show_error().
         self._info_bar.set_no_show_all(True)
         outer.pack_start(self._info_bar, False, False, 0)
 
@@ -398,6 +405,9 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         self._pipeline_gen += 1
         self._transition(State.PROCESSING, status="Stopping recording…")
+        # Move the recorder to a local variable and clear self._recorder before
+        # launching the thread. This prevents a second click from calling stop()
+        # on the same recorder instance while the first stop is still in progress.
         recorder = self._recorder
         self._recorder = None
         gen_id = self._pipeline_gen
@@ -412,7 +422,10 @@ class MainWindow(Gtk.ApplicationWindow):
         assert_main_thread()
         if self._state != State.PROCESSING:
             return
-        self._pipeline_gen += 1  # invalidate any in-flight pipeline callbacks
+        # Python has no safe way to kill a background thread. Instead we bump the
+        # generation counter; the pipeline thread checks gen_id before any UI callback
+        # and silently discards its result if the counter has moved on.
+        self._pipeline_gen += 1
         self._transition(State.IDLE, status="Processing cancelled.")
         logger.info("Pipeline cancelled by user (gen=%d)", self._pipeline_gen)
 
@@ -467,7 +480,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 logger.warning("Could not delete audio file: %s", exc)
         if self._audio_path:
             try:
-                self._audio_path.parent.rmdir()  # only removes if empty
+                # Remove the session folder only if it is now empty. If the user had
+                # previously saved a transcript from an earlier attempt, this is a no-op.
+                self._audio_path.parent.rmdir()
             except Exception:
                 pass
         idle_call(self._transition, State.IDLE)
@@ -646,10 +661,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def hide_to_tray(self) -> None:
         """Hide window and remove from taskbar — app stays alive in system tray."""
+        # skip_taskbar_hint removes the window from Alt+Tab and the taskbar while
+        # keeping it alive. Combined with hide(), the app becomes tray-only.
         self.set_skip_taskbar_hint(True)
         self.hide()
 
     def _on_delete(self, *_) -> bool:
-        # Hide to tray instead of closing; recording continues uninterrupted
+        # Intercept the window close button. Destroying the window would kill the app
+        # (and any active recording). Instead we hide to tray so recording continues.
         self.hide_to_tray()
-        return True  # suppress destruction
+        return True  # returning True suppresses the default destroy behaviour

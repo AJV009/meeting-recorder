@@ -12,6 +12,8 @@ def idle_call(func: Callable, *args: Any) -> None:
     """Schedule func(*args) to run on the GTK main thread via GLib.idle_add."""
     def _wrapper():
         func(*args)
+        # GLib.SOURCE_REMOVE (False) tells GLib not to re-schedule this callback.
+        # Returning SOURCE_CONTINUE (True) would call it again on every idle cycle.
         return GLib.SOURCE_REMOVE
     GLib.idle_add(_wrapper)
 

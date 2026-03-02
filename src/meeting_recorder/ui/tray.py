@@ -6,7 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try AyatanaAppIndicator3 first
+# AyatanaAppIndicator3 is the Canonical/Ubuntu maintained fork of AppIndicator3.
+# Ubuntu 22.04+ and Linux Mint ship AyatanaAppIndicator3; older systems may only
+# have the original AppIndicator3. We try both to cover both distributions.
 _INDICATOR_AVAILABLE = False
 try:
     import gi
@@ -127,6 +129,8 @@ class _IndicatorTray:
         )
 
     def _on_start(self) -> None:
+        # AppIndicator callbacks can arrive on a non-GTK thread; route all UI
+        # mutations through idle_call to ensure they run on the main thread.
         from ..utils.glib_bridge import idle_call
         idle_call(self._window.on_record_clicked)
 
@@ -191,6 +195,8 @@ class _PystrayTray:
             menu=self._build_menu(),
         )
         import threading
+        # pystray.Icon.run() blocks in its own event loop. A daemon thread means it
+        # doesn't prevent process exit when the main GTK loop shuts down.
         threading.Thread(target=self._icon.run, daemon=True).start()
 
     def _build_menu(self):

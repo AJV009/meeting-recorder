@@ -140,9 +140,13 @@ class GeminiProvider:
         logger.info("Uploading %s to Gemini Files API", audio_path)
         uploaded = client.files.upload(
             file=str(audio_path),
+            # mime_type must be specified explicitly; the SDK does not infer it from
+            # the file extension for audio files, and omitting it causes a 400 error.
             config={"mime_type": "audio/mpeg"},
         )
 
+        # After upload, Google's servers transcode and analyse the audio. The file
+        # state transitions PROCESSING → ACTIVE before it can be referenced in prompts.
         uploaded = self._wait_for_active(client, uploaded, on_status)
 
         if on_status:

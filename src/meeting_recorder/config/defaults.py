@@ -45,14 +45,17 @@ DEFAULT_CONFIG: dict = {
     "call_detection_enabled": False,
 }
 
-# Whisper file size limit in bytes (25MB)
+# OpenAI Whisper rejects files larger than 25MB. Files above this are split into
+# overlapping chunks and transcribed separately.
 WHISPER_SIZE_LIMIT = 25 * 1024 * 1024
-# Chunk target size (20MB)
+# Target size per chunk, kept below the limit with headroom for encoding variance.
 WHISPER_CHUNK_SIZE = 20 * 1024 * 1024
-# Overlap in seconds for chunked transcription
+# Each chunk overlaps the previous by this many seconds so words at the boundary
+# aren't cut off. The overlap region is skipped when assembling the final transcript.
 WHISPER_OVERLAP_SECONDS = 30
 
-# Deduplication window (seconds) — don't notify again within this period
+# A single call start can trigger multiple source-output events (browser tabs, virtual
+# devices). This window collapses the burst into one notification.
 CALL_DETECTION_DEDUP_WINDOW = 10
 
 # Recording format
@@ -60,7 +63,9 @@ AUDIO_FORMAT = "mp3"
 AUDIO_CODEC = "libmp3lame"
 AUDIO_QUALITY = "2"  # VBR quality (0=best, 9=worst); q:a 2 ≈ 190kbps
 
-# Named pipe buffer for ffmpeg
+# ffmpeg reads from two named pipes simultaneously. If one pipe briefly falls behind
+# (e.g. parec scheduling jitter), ffmpeg would stall without a queue buffer.
+# 512 frames gives ~11ms of headroom at 44100 Hz.
 FFMPEG_THREAD_QUEUE_SIZE = 512
 
 SUMMARIZATION_PROMPT = """\

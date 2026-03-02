@@ -71,7 +71,9 @@ class Recorder:
 
         monitor_source = get_monitor_source(sink)
 
-        # Create named pipes in a temp directory
+        # Named pipes let parec and ffmpeg stream audio between processes without
+        # buffering the entire recording to disk. A 1-hour session at 192kbps
+        # would produce ~85MB in a temp file; a pipe has no storage cost.
         self._tmpdir = tempfile.TemporaryDirectory(prefix="meeting-recorder-")
         tmpdir = self._tmpdir.name
         self._mic_pipe = os.path.join(tmpdir, "mic.pipe")
@@ -79,7 +81,10 @@ class Recorder:
         os.mkfifo(self._mic_pipe)
         os.mkfifo(self._monitor_pipe)
 
-        # Start parec processes BEFORE ffmpeg (pipes must have writers first)
+        # parec must be started BEFORE ffmpeg. open() on a named pipe blocks until
+        # both the reader and writer ends are connected. If ffmpeg started first it
+        # would block waiting for the pipe writer, and this thread would never reach
+        # the parec Popen calls.
         try:
             self._parec_mic = subprocess.Popen(
                 [
@@ -113,7 +118,9 @@ class Recorder:
                 "parec not found. Install pulseaudio-utils or pipewire-pulse."
             )
 
-        # Brief delay to let parec open the pipes before ffmpeg tries to read
+        # Give parec a moment to open the write end of each pipe before ffmpeg
+        # tries to open the read end. Without this, ffmpeg's open() can race with
+        # parec's open(), causing a brief ENXIO on the read side.
         time.sleep(0.3)
 
         cmd = build_ffmpeg_command(
@@ -146,7 +153,13 @@ class Recorder:
         logger.info("Recording started → %s", self._output_path)
 
     def pause(self) -> None:
-        """Pause recording by sending SIGSTOP to parec processes."""
+        """Pause recording by sending SIGSTOP to parec processes.
+
+        We pause parec (the data source) rather than ffmpeg. If we stopped ffmpeg,
+        the named pipes would fill up (Linux pipes buffer ~64KB), causing parec to
+        block and potentially corrupt the audio stream. SIGSTOP on parec freezes
+        data production; ffmpeg then naturally blocks on empty pipes without overflow.
+        """
         with self._lock:
             if self._paused:
                 return
@@ -168,7 +181,8 @@ class Recorder:
         logger.info("Stopping recording...")
         self._stop_event.set()
 
-        # Resume parec first so pipes drain cleanly
+        # Resume parec before terminating it: a SIGSTOP'd process can't receive
+        # SIGTERM, so it would hang in the proc.wait() call below indefinitely.
         if self._paused:
             self._signal_parec(signal.SIGCONT)
 
@@ -181,7 +195,8 @@ class Recorder:
                 except subprocess.TimeoutExpired:
                     proc.kill()
 
-        # Wait for ffmpeg to finish writing (it'll exit when pipes close)
+        # Terminating parec closes the write ends of the pipes. ffmpeg sees EOF on
+        # both inputs and exits cleanly after flushing the MP3 encoder and trailer.
         if self._ffmpeg and self._ffmpeg.poll() is None:
             try:
                 self._ffmpeg.wait(timeout=30)
@@ -219,6 +234,8 @@ class Recorder:
     def _timer_loop(self) -> None:
         while not self._stop_event.is_set():
             time.sleep(1)
+            # Re-check after the sleep: stop() may have been called while we slept,
+            # and we should not increment elapsed or fire on_tick for that extra second.
             if not self._stop_event.is_set():
                 with self._lock:
                     paused = self._paused

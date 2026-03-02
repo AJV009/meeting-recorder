@@ -27,7 +27,8 @@ def _format_timestamp(seconds: float) -> str:
     return f"[{h:02d}:{m:02d}:{s:02d}]"
 
 
-# Segments with no_speech_prob above this threshold are likely silence/hallucination
+# Whisper often hallucinates filler text (e.g. "Thank you for watching!") on silent
+# segments. Empirically, genuine silence has no_speech_prob > 0.6; speech is < 0.4.
 _NO_SPEECH_THRESHOLD = 0.6
 
 
@@ -90,8 +91,10 @@ class WhisperProvider:
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             mono_path = Path(tmp.name)
         try:
-            # Mix stereo down to mono — Whisper is designed for mono and hallucinates
-            # on stereo (especially when one channel is silent).
+            # Whisper was trained on mono audio. Our recordings are stereo (mic left,
+            # system right). When one channel is nearly silent, Whisper treats the
+            # signal as very low-volume and tends to hallucinate repetitive filler text.
+            # Down-mixing to mono before transcription avoids this.
             result = subprocess.run(
                 [
                     "ffmpeg", "-y", "-i", str(audio_path),
@@ -133,9 +136,12 @@ class WhisperProvider:
 
         logger.info("Audio file %s is >25MB; using chunked transcription", audio_path)
 
-        # Estimate segment duration
+        # Estimate duration from file size rather than probing with ffprobe.
+        # ffprobe would be more accurate but adds a dependency and a subprocess call.
+        # A conservative 128kbps estimate keeps chunks safely under the 25MB limit
+        # even for higher-bitrate recordings.
         size_bytes = audio_path.stat().st_size
-        bitrate_bps = 128_000  # conservative MP3 estimate
+        bitrate_bps = 128_000
         duration_secs = (size_bytes * 8) / bitrate_bps
         segment_secs = int((WHISPER_CHUNK_SIZE * 8) / bitrate_bps)
         segment_secs = max(60, segment_secs)
@@ -151,7 +157,9 @@ class WhisperProvider:
             for i, (chunk_path, chunk_start) in enumerate(chunks):
                 if on_status:
                     on_status(f"Transcribing chunk {i + 1}/{len(chunks)}…")
-                # First chunk: no skip. Subsequent chunks: skip the overlap region.
+                # The overlap region at the start of each non-first chunk is a
+                # duplicate of the end of the previous chunk. Skipping it prevents
+                # the same words from appearing twice in the assembled transcript.
                 skip = WHISPER_OVERLAP_SECONDS if i > 0 else 0.0
                 text = self._transcribe_single(
                     chunk_path,
@@ -182,6 +190,9 @@ class WhisperProvider:
             chunk_path = os.path.join(tmpdir, f"chunk_{len(chunks):03d}.mp3")
             cmd = [
                 "ffmpeg", "-y",
+                # -ss before -i is a stream seek (container-level), which is near-instant
+                # for MP3. Placing -ss after -i would do a frame-accurate seek by
+                # decoding from the start — prohibitively slow for large recordings.
                 "-ss", str(start),
                 "-i", str(audio_path),
                 "-t", str(segment_secs + overlap),

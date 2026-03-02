@@ -29,7 +29,8 @@ def _check_system_deps() -> list[str]:
                 timeout=3,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            # parecord may not have --version; try with no args
+            # parec/parecord doesn't support --version; invoking with no args still
+            # proves the binary exists (it exits with an error but doesn't raise).
             try:
                 subprocess.run(
                     [cmd],
@@ -55,7 +56,9 @@ class MeetingRecorderApp(Gtk.Application):
     def do_startup(self) -> None:
         Gtk.Application.do_startup(self)
         self._setup_logging()
-        # Prevent GTK from quitting when the window is hidden (tray-only mode)
+        # Without hold(), GApplication exits as soon as the last window is hidden.
+        # We hide to tray rather than closing, so we need to keep the app alive manually.
+        # The matching release() is never called; we exit via quit() instead.
         self.hold()
 
     @staticmethod
@@ -145,7 +148,8 @@ class MeetingRecorderApp(Gtk.Application):
 
     def _on_call_detected(self, source: str) -> None:
         from .ui.main_window import State
-        # Suppress if we are already recording, paused, or processing
+        # Don't notify if we are already recording or processing — the user started
+        # intentionally and a "call detected" popup would be disruptive/redundant.
         if self.window and self.window._state != State.IDLE:
             logger.debug("Call detected but app is already active — suppressing notification")
             return
@@ -159,6 +163,8 @@ class MeetingRecorderApp(Gtk.Application):
 
     # ------------------------------------------------------------------
     def do_shutdown(self) -> None:
+        # Terminate the pactl subscribe subprocess explicitly; daemon threads die on
+        # exit but the child process would otherwise become an orphan.
         if self._call_detector is not None:
             self._call_detector.stop()
         Gtk.Application.do_shutdown(self)

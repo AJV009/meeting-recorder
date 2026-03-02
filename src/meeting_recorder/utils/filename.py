@@ -14,7 +14,8 @@ def _sanitize_title(title: str) -> str:
     sanitized = re.sub(r'[/\\:\*\?"<>\|]', "", title)
     # Collapse whitespace to single underscore
     sanitized = re.sub(r"\s+", "_", sanitized.strip())
-    # Limit length
+    # 50 chars keeps the full path well under the 255-byte filename limit even
+    # when prepended with a timestamp (e.g. "14-30_").
     return sanitized[:50]
 
 
@@ -28,6 +29,9 @@ def output_paths(
 
     Structure: <output_folder>/<YYYY>/<Month>/<DD>/<HH-MM[_title]>/
     e.g. ~/meetings/2026/March/01/14-30_Standup/
+
+    The year/month/day hierarchy prevents a flat directory from accumulating hundreds
+    of entries. Month names (not numbers) make browsing more readable.
     """
     if dt is None:
         dt = datetime.now()

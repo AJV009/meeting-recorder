@@ -55,6 +55,11 @@ class AudioWatcher:
             # Example lines:
             #   Event 'new' on source-output #123
             #   Event 'new' on client #456
+            # A "source-output" is created whenever any app captures from the mic.
+            # This is intentionally broad: we want to catch browser calls (Meet,
+            # Teams), desktop apps (Zoom, Slack), and any other call software. The
+            # CallDetector deduplication window handles the burst of events a single
+            # call start produces.
             if "new" in line and "source-output" in line:
                 logger.debug("New audio source-output detected: %s", line)
                 self._on_detected("audio-stream")

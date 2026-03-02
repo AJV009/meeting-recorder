@@ -39,6 +39,9 @@ class CallDetector:
     def _handle_detection(self, source: str) -> None:
         now = time.time()
         with self._lock:
+            # When a browser opens a call (e.g. Google Meet) it creates several
+            # source-outputs in quick succession (tab audio, video, etc.), which
+            # would spam the user with repeated notifications for a single call start.
             if now - self._last_notified < CALL_DETECTION_DEDUP_WINDOW:
                 return
             self._last_notified = now

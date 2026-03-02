@@ -45,15 +45,18 @@ def save(config: dict[str, Any]) -> None:
     d.mkdir(parents=True, exist_ok=True)
 
     path = _config_path()
-    # Write atomically: write to temp, then rename
+    # Write to a temp file first so a crash or disk-full error never leaves a
+    # half-written (and therefore unparseable) config.json.
     tmp = path.with_suffix(".tmp")
     try:
         with open(tmp, "w") as f:
             json.dump(config, f, indent=2)
-        # Secure permissions before rename
+        # Lock down permissions before the rename so there is no window where the
+        # file is world-readable. The config stores API keys in plaintext.
         os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
         tmp.rename(path)
-        # Ensure permissions on final file (rename preserves them on Linux)
+        # rename() preserves permissions on Linux, but set them again to be safe
+        # (e.g. if the file already existed with looser permissions).
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
     except Exception as exc:
         logger.error("Failed to save config: %s", exc)

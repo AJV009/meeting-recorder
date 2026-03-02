@@ -34,6 +34,10 @@ class Pipeline:
 
     def run(self) -> None:
         """Execute the pipeline. Raises on failure."""
+        # A previous optimisation ran both transcription and summarisation in a single
+        # Gemini call (GEMINI_DUAL_PROMPT). It was removed because the model would stop
+        # transcribing early (finish_reason=STOP, not MAX_TOKENS) to conserve output
+        # budget for the notes section. Separate calls give each task its full quota.
         self._run_separate()
 
     # ------------------------------------------------------------------

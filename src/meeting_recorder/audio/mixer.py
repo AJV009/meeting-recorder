@@ -19,9 +19,13 @@ def build_ffmpeg_command(
       Left  (ch 0) = mic input    — the local speaker
       Right (ch 1) = system audio — remote participants
 
-    Both pipes carry raw s16le, 44100 Hz, mono audio from parec.
-    amerge merges the two mono streams into a single stereo stream,
-    preserving channel separation so AI models can distinguish speakers.
+    Both pipes carry raw s16le, 44100 Hz, mono audio from parec. The format
+    flags below must exactly match the parec invocation in recorder.py.
+
+    amerge is used instead of amix: amerge produces a true stereo file with
+    separate channels (mic left, system right), while amix would sum them into
+    a single channel — losing the speaker separation that the AI transcription
+    prompts rely on to distinguish local from remote participants.
     """
     return [
         "ffmpeg",

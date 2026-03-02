@@ -22,6 +22,8 @@ def _run_pactl(*args: str) -> str:
         ["pactl", *args],
         capture_output=True,
         text=True,
+        # pactl is instantaneous under normal conditions. A longer timeout would
+        # stall the UI thread if PipeWire/PulseAudio is hung or restarting.
         timeout=5,
     )
     result.check_returncode()
@@ -51,7 +53,10 @@ def _parse_devices(cmd: str, *args: str, kind: str) -> list[AudioDevice]:
         parts = line.strip().split("\t")
         if len(parts) >= 2:
             name = parts[1]
-            description = parts[1]  # Short format lacks description
+            # "pactl list short sources" doesn't include human-readable descriptions.
+            # Getting them requires "pactl list sources" (verbose JSON), which is
+            # significantly slower. For our purposes the internal name is sufficient.
+            description = parts[1]
             devices.append(AudioDevice(name=name, description=description, kind=kind))
     return devices
 
@@ -77,7 +82,12 @@ def get_default_sink() -> str | None:
 
 
 def get_monitor_source(sink_name: str) -> str:
-    """Return the monitor source name for a given sink (for loopback recording)."""
+    """Return the monitor source name for a given sink (for loopback recording).
+
+    PipeWire/PulseAudio automatically creates a virtual "<sink>.monitor" source for
+    every sink. Recording from it captures whatever audio is being played out through
+    that sink — no loopback module or system configuration required.
+    """
     return f"{sink_name}.monitor"
 
 
