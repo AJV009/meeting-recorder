@@ -83,7 +83,8 @@ class _IndicatorTray:
         state = self._state
 
         if state == "idle":
-            self._add_item("Start Recording", self._on_start)
+            self._add_item("Record (Headphones)", self._on_start_headphones)
+            self._add_item("Record (Speaker)", self._on_start_speaker)
         elif state == "recording":
             self._add_item("Pause Recording", self._on_pause)
             self._add_item("Stop Recording", self._on_stop)
@@ -128,11 +129,15 @@ class _IndicatorTray:
             icons.get(state, "audio-input-microphone"), state
         )
 
-    def _on_start(self) -> None:
+    def _on_start_headphones(self) -> None:
         # AppIndicator callbacks can arrive on a non-GTK thread; route all UI
         # mutations through idle_call to ensure they run on the main thread.
         from ..utils.glib_bridge import idle_call
-        idle_call(self._window.on_record_clicked)
+        idle_call(self._window.on_record_headphones_clicked)
+
+    def _on_start_speaker(self) -> None:
+        from ..utils.glib_bridge import idle_call
+        idle_call(self._window.on_record_speaker_clicked)
 
     def _on_pause(self) -> None:
         from ..utils.glib_bridge import idle_call
@@ -207,8 +212,10 @@ class _PystrayTray:
         items = []
 
         if state == "idle":
-            items.append(pystray.MenuItem("Start Recording",
-                lambda *_: idle_call(self._window.on_record_clicked)))
+            items.append(pystray.MenuItem("Record (Headphones)",
+                lambda *_: idle_call(self._window.on_record_headphones_clicked)))
+            items.append(pystray.MenuItem("Record (Speaker)",
+                lambda *_: idle_call(self._window.on_record_speaker_clicked)))
         elif state == "recording":
             items.append(pystray.MenuItem("Pause Recording",
                 lambda *_: idle_call(self._window.on_pause_clicked)))

@@ -66,21 +66,3 @@ def build_ffmpeg_command_mic_only(
     ]
 
 
-def build_split_command(
-    input_path: str | Path,
-    segment_path_template: str,
-    segment_duration_secs: int = 1200,  # 20 minutes
-) -> list[str]:
-    """
-    Build ffmpeg command to split a large audio file into segments.
-    segment_path_template should contain %03d, e.g. /tmp/chunk_%03d.mp3
-    """
-    return [
-        "ffmpeg",
-        "-y",
-        "-i", str(input_path),
-        "-f", "segment",
-        "-segment_time", str(segment_duration_secs),
-        "-c", "copy",
-        str(segment_path_template),
-    ]

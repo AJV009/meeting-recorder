@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 class Pipeline:
     """
     Runs the full AI processing pipeline for a completed recording.
-
-    - If both transcription and summarization are Gemini, uses single-call path.
-    - Otherwise runs transcription then summarization as separate calls.
-    - Writes transcript and notes to their respective paths.
+    Runs transcription then summarization as separate calls, writing results to disk.
     """
 
     def __init__(

@@ -21,24 +21,13 @@ logger = logging.getLogger(__name__)
 def _check_system_deps() -> list[str]:
     """Return list of missing system dependencies."""
     missing = []
-    for cmd in ("ffmpeg", "parecord", "pactl"):
+    for cmd in ("ffmpeg", "pactl"):
         try:
-            subprocess.run(
-                [cmd, "--version"],
-                capture_output=True,
-                timeout=3,
-            )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            # parec/parecord doesn't support --version; invoking with no args still
-            # proves the binary exists (it exits with an error but doesn't raise).
-            try:
-                subprocess.run(
-                    [cmd],
-                    capture_output=True,
-                    timeout=3,
-                )
-            except FileNotFoundError:
-                missing.append(cmd)
+            subprocess.run([cmd, "--version"], capture_output=True, timeout=3)
+        except FileNotFoundError:
+            missing.append(cmd)
+        except subprocess.TimeoutExpired:
+            pass  # binary exists but hung — don't flag as missing
     return missing
 
 
@@ -158,7 +147,6 @@ class MeetingRecorderApp(Gtk.Application):
             summary="Call Detected",
             body="A call may have started. Click to start recording.",
             app_name=APP_NAME,
-            on_click=lambda: GLib.idle_add(self.do_activate),
         )
 
     # ------------------------------------------------------------------

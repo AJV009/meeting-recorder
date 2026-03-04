@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,6 @@ def notify(
     body: str = "",
     app_name: str = "Meeting Recorder",
     icon: str = "audio-input-microphone",
-    on_click: Callable | None = None,
 ) -> None:
     """Send a desktop notification using notify-send (libnotify)."""
     cmd = [

@@ -1,20 +1,11 @@
-"""pactl-based audio device enumeration and validation."""
+"""pactl-based audio device queries."""
 
 from __future__ import annotations
 
 import logging
-import re
 import subprocess
-from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class AudioDevice:
-    name: str
-    description: str
-    kind: str  # "source" or "sink"
 
 
 def _run_pactl(*args: str) -> str:
@@ -28,37 +19,6 @@ def _run_pactl(*args: str) -> str:
     )
     result.check_returncode()
     return result.stdout
-
-
-def list_sources() -> list[AudioDevice]:
-    """Return all PulseAudio/PipeWire sources (microphone inputs)."""
-    return _parse_devices("list", "short", "sources", "source")
-
-
-def list_sinks() -> list[AudioDevice]:
-    """Return all PulseAudio/PipeWire sinks (output devices)."""
-    return _parse_devices("list", "short", "sinks", "sink")
-
-
-def _parse_devices(cmd: str, *args: str, kind: str) -> list[AudioDevice]:
-    try:
-        output = _run_pactl(cmd, *args)
-    except Exception as exc:
-        logger.error("pactl %s %s failed: %s", cmd, " ".join(args), exc)
-        return []
-
-    devices = []
-    for line in output.splitlines():
-        # Short format: index \t name \t driver \t sample \t state
-        parts = line.strip().split("\t")
-        if len(parts) >= 2:
-            name = parts[1]
-            # "pactl list short sources" doesn't include human-readable descriptions.
-            # Getting them requires "pactl list sources" (verbose JSON), which is
-            # significantly slower. For our purposes the internal name is sufficient.
-            description = parts[1]
-            devices.append(AudioDevice(name=name, description=description, kind=kind))
-    return devices
 
 
 def get_default_source() -> str | None:

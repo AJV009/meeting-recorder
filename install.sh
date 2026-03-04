@@ -61,6 +61,7 @@ cp -r "$SCRIPT_DIR/src" "$INSTALL_DIR/"
 mkdir -p "$BIN_DIR"
 cat > "$LAUNCHER" << LAUNCHER_EOF
 #!/usr/bin/env bash
+export PYTHONPATH="$INSTALL_DIR/src"
 exec "$VENV_DIR/bin/python" -m meeting_recorder "\$@"
 LAUNCHER_EOF
 chmod +x "$LAUNCHER"

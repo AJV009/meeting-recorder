@@ -24,7 +24,7 @@ def create_summarization_provider(config: dict) -> SummarizationProvider:
         from .providers.gemini import GeminiProvider
         return GeminiProvider(
             api_key=config["gemini_api_key"],
-            model=config.get("gemini_model", "gemini-1.5-flash"),
+            model=config.get("gemini_model", "gemini-2.5-flash"),
         )
     else:
         raise ValueError(f"Unknown summarization service: {service!r}")
