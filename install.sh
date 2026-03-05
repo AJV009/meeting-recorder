@@ -57,17 +57,25 @@ info "Installing Python dependencies…"
 info "Copying application source…"
 cp -r "$SCRIPT_DIR/src" "$INSTALL_DIR/"
 
-# ── 6. Launcher script ───────────────────────────────────────────────────────
+# ── 6. System log directory ──────────────────────────────────────────────────
+SYSTEM_LOG_DIR="/var/log/meeting-recorder"
+info "Creating system log directory at $SYSTEM_LOG_DIR…"
+sudo mkdir -p "$SYSTEM_LOG_DIR"
+sudo chown "$USER:$USER" "$SYSTEM_LOG_DIR"
+sudo chmod 755 "$SYSTEM_LOG_DIR"
+
+# ── 7. Launcher script ───────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
 cat > "$LAUNCHER" << LAUNCHER_EOF
 #!/usr/bin/env bash
 export PYTHONPATH="$INSTALL_DIR/src"
+export MEETING_RECORDER_INSTALLED=1
 exec "$VENV_DIR/bin/python" -m meeting_recorder "\$@"
 LAUNCHER_EOF
 chmod +x "$LAUNCHER"
 info "Launcher created at $LAUNCHER"
 
-# ── 7. Desktop entry ─────────────────────────────────────────────────────────
+# ── 8. Desktop entry ─────────────────────────────────────────────────────────
 mkdir -p "$APPS_DIR"
 sed "s|LAUNCHER_PATH|$LAUNCHER|g" "$SCRIPT_DIR/meeting-recorder.desktop.template" \
     > "$DESKTOP"
@@ -77,7 +85,7 @@ info "Desktop entry created at $DESKTOP"
 # Update desktop database if available
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
 
-# ── 8. Add ~/.local/bin to PATH hint ─────────────────────────────────────────
+# ── 9. Add ~/.local/bin to PATH hint ─────────────────────────────────────────
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     warn "$BIN_DIR is not in your PATH."
     warn "Add it to your shell profile: export PATH=\"\$HOME/.local/bin:\$PATH\""

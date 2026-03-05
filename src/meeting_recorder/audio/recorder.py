@@ -3,17 +3,44 @@
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Callable
+from typing import IO, Callable
 
 from .devices import get_default_source, get_default_sink, get_monitor_source
 from .mixer import build_ffmpeg_command, build_ffmpeg_command_mic_only
 
 logger = logging.getLogger(__name__)
+
+# Set by install.sh launcher when running as an installed app.
+_INSTALLED = bool(os.environ.get("MEETING_RECORDER_INSTALLED"))
+_SYSTEM_LOG_DIR = Path("/var/log/meeting-recorder")
+
+
+def _ffmpeg_log_path(output_path: Path) -> Path:
+    """
+    Return the path where ffmpeg stderr should be written.
+
+    Installed (MEETING_RECORDER_INSTALLED=1):
+        /var/log/meeting-recorder/ffmpeg-<session-dir>.log
+        e.g. /var/log/meeting-recorder/ffmpeg-14-32.log
+
+    Dev mode (PYTHONPATH=src python3 -m meeting_recorder):
+        <recording-dir>/ffmpeg.log
+        e.g. ~/meetings/2026/March/05/14-32/ffmpeg.log
+    """
+    if _INSTALLED:
+        try:
+            _SYSTEM_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # Fall back to recording dir if system log dir is inaccessible.
+            return output_path.with_name("ffmpeg.log")
+        return _SYSTEM_LOG_DIR / f"ffmpeg-{output_path.parent.name}.log"
+    return output_path.with_name("ffmpeg.log")
 
 
 class RecordingError(Exception):
@@ -45,6 +72,8 @@ class Recorder:
         self._on_error = on_error
 
         self._ffmpeg: subprocess.Popen | None = None
+        self._stderr_log: IO[bytes] | None = None
+        self._ffmpeg_log_path: Path | None = None
 
         self._timer_thread: threading.Thread | None = None
         self._elapsed: int = 0  # seconds
@@ -70,13 +99,21 @@ class Recorder:
                 raise RecordingError("No audio output device found. Check audio setup.")
             monitor_source = get_monitor_source(sink)
             cmd = build_ffmpeg_command(mic_source, monitor_source, self._output_path)
+
+        log_path = _ffmpeg_log_path(self._output_path)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._ffmpeg_log_path = log_path
+        self._stderr_log = open(log_path, "wb")
+
         try:
             self._ffmpeg = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
+                stderr=self._stderr_log,
             )
         except FileNotFoundError:
+            self._stderr_log.close()
+            self._stderr_log = None
             raise RecordingError("ffmpeg not found. Please install ffmpeg.")
 
         self._stop_event.clear()
@@ -90,6 +127,7 @@ class Recorder:
         threading.Thread(target=self._monitor_ffmpeg, daemon=True).start()
 
         logger.info("Recording started → %s", self._output_path)
+        logger.info("ffmpeg log → %s", log_path)
 
     def pause(self) -> None:
         """Pause recording by sending SIGSTOP to ffmpeg."""
@@ -138,6 +176,10 @@ class Recorder:
                 self._ffmpeg.kill()
                 self._ffmpeg.wait()
 
+        if self._stderr_log:
+            self._stderr_log.close()
+            self._stderr_log = None
+
         if self._timer_thread:
             self._timer_thread.join(timeout=2)
 
@@ -173,10 +215,10 @@ class Recorder:
             return
         retcode = self._ffmpeg.wait()
         if not self._stop_event.is_set() and retcode != 0:
-            stderr = b""
-            if self._ffmpeg.stderr:
-                stderr = self._ffmpeg.stderr.read()
-            msg = f"ffmpeg exited unexpectedly (code {retcode}): {stderr.decode(errors='replace')}"
+            msg = (
+                f"ffmpeg exited unexpectedly (code {retcode})"
+                + (f", see {self._ffmpeg_log_path}" if self._ffmpeg_log_path else "")
+            )
             logger.error(msg)
             if self._on_error:
                 self._on_error(msg)

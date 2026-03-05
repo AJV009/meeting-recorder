@@ -28,6 +28,7 @@ def build_ffmpeg_command(
     return [
         "ffmpeg",
         "-hide_banner",
+        "-loglevel", "error",
         "-y",
         # thread_queue_size buffers packets between the PulseAudio input thread and
         # the filter/encode thread. Without it the queue fills up and ffmpeg silently
@@ -56,6 +57,7 @@ def build_ffmpeg_command_mic_only(
     return [
         "ffmpeg",
         "-hide_banner",
+        "-loglevel", "error",
         "-y",
         "-thread_queue_size", "4096",
         "-f", "pulse", "-i", source,
