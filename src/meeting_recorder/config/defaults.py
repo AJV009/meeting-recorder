@@ -37,6 +37,7 @@ DEFAULT_CONFIG: dict = {
     "output_folder": DEFAULT_OUTPUT_FOLDER,
     "recording_quality": "high",
     "call_detection_enabled": False,
+    "start_at_startup": False,
 
     # Empty string means "use the built-in default prompt".
     # Storing the prompt text directly lets the user revert to the default

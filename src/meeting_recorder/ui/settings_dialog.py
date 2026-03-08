@@ -20,6 +20,7 @@ from ..config.defaults import (
     SUMMARIZATION_SERVICES,
     TRANSCRIPTION_SERVICES,
 )
+from ..utils.autostart import update_autostart, is_autostart_enabled, can_enable_autostart
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class SettingsDialog(Gtk.Dialog):
         notebook.append_page(self._build_services_tab(), Gtk.Label(label="Services"))
         notebook.append_page(self._build_api_keys_tab(), Gtk.Label(label="API Keys"))
         notebook.append_page(self._build_output_tab(), Gtk.Label(label="Output"))
-        notebook.append_page(self._build_detection_tab(), Gtk.Label(label="Detection"))
+        notebook.append_page(self._build_general_tab(), Gtk.Label(label="General"))
         notebook.append_page(self._build_prompts_tab(), Gtk.Label(label="Prompts"))
 
         self.show_all()
@@ -179,26 +180,51 @@ class SettingsDialog(Gtk.Dialog):
         return grid
 
     # ------------------------------------------------------------------
-    # Detection tab
+    # General tab
     # ------------------------------------------------------------------
 
-    def _build_detection_tab(self) -> Gtk.Widget:
+    def _build_general_tab(self) -> Gtk.Widget:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         box.set_margin_top(16)
         box.set_margin_bottom(16)
         box.set_margin_start(16)
         box.set_margin_end(16)
 
+        # Autostart
+        self._startup_switch = Gtk.Switch()
+        self._startup_switch.set_active(is_autostart_enabled())
+        self._startup_switch.set_halign(Gtk.Align.START)
+        
+        can_enable = can_enable_autostart()
+        is_enabled = is_autostart_enabled()
+        self._startup_switch.set_sensitive(is_enabled or can_enable)
+
+        hbox1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        hbox1.pack_start(Gtk.Label(label="Start at system startup:"), False, False, 0)
+        hbox1.pack_start(self._startup_switch, False, False, 0)
+        box.pack_start(hbox1, False, False, 0)
+        
+        if not (is_enabled or can_enable):
+             note_no_autostart = Gtk.Label(
+                label="Note: To enable autostart, the app must first be installed via install.sh."
+            )
+             note_no_autostart.set_line_wrap(True)
+             note_no_autostart.set_xalign(0)
+             box.pack_start(note_no_autostart, False, False, 0)
+
+        box.pack_start(Gtk.Separator(), False, False, 4)
+
+        # Call detection
         self._detection_switch = Gtk.Switch()
         self._detection_switch.set_active(
             self._cfg.get("call_detection_enabled", False)
         )
         self._detection_switch.set_halign(Gtk.Align.START)
 
-        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        hbox.pack_start(Gtk.Label(label="Enable call detection:"), False, False, 0)
-        hbox.pack_start(self._detection_switch, False, False, 0)
-        box.pack_start(hbox, False, False, 0)
+        hbox2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        hbox2.pack_start(Gtk.Label(label="Enable call detection:"), False, False, 0)
+        hbox2.pack_start(self._detection_switch, False, False, 0)
+        box.pack_start(hbox2, False, False, 0)
 
         note = Gtk.Label(
             label=(
@@ -348,6 +374,7 @@ class SettingsDialog(Gtk.Dialog):
         cfg["output_folder"] = self._folder_entry.get_text().strip() or "~/meetings"
         cfg["recording_quality"] = self._quality_combo.get_active_id() or "high"
         cfg["call_detection_enabled"] = self._detection_switch.get_active()
+        cfg["start_at_startup"] = self._startup_switch.get_active()
 
         ts_buf = self._ts_prompt_view.get_buffer()
         ts_text = ts_buf.get_text(ts_buf.get_start_iter(), ts_buf.get_end_iter(), False).strip()
@@ -360,5 +387,6 @@ class SettingsDialog(Gtk.Dialog):
         cfg["summarization_prompt"] = "" if ss_text == SUMMARIZATION_PROMPT.strip() else ss_text
         try:
             settings.save(cfg)
+            update_autostart(cfg["start_at_startup"])
         except Exception as exc:
             logger.error("Failed to save settings: %s", exc)
