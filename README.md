@@ -47,6 +47,25 @@ Depending on which services you use:
 
 ## Installation
 
+### Option 1: .deb package (recommended)
+
+Download the latest `.deb` from the [Releases](../../releases) page and install it:
+
+```bash
+sudo dpkg -i meeting-recorder_*.deb
+sudo apt-get install -f   # installs any missing dependencies
+```
+
+The installer sets up all system dependencies, creates a Python venv at `/opt/meeting-recorder/venv`, and installs Ollama if not already present.
+
+To uninstall:
+
+```bash
+sudo apt remove meeting-recorder
+```
+
+### Option 2: install.sh (from source)
+
 ```bash
 git clone <repo-url>
 cd meeting-recorder
@@ -55,7 +74,13 @@ cd meeting-recorder
 
 `install.sh` installs all system dependencies, sets up Ollama if not already installed, and creates a Python venv with all required packages.
 
-Then launch:
+To uninstall:
+
+```bash
+./uninstall.sh
+```
+
+Then launch either way:
 
 ```bash
 meeting-recorder
@@ -75,12 +100,6 @@ cd meeting-recorder
 python3 -m venv .venv --system-site-packages
 .venv/bin/pip install -r requirements.txt
 PYTHONPATH=src python3 -m meeting_recorder
-```
-
-## Uninstall
-
-```bash
-./uninstall.sh
 ```
 
 ## Recording Modes
@@ -224,8 +243,9 @@ Application logs:
 ```
 
 FFmpeg (recording) logs:
-- **Installed**: `/var/log/meeting-recorder/ffmpeg-<session-dir>.log`
-- **Dev Mode**: `ffmpeg.log` inside the recording directory
+- **.deb install**: `/var/log/meeting-recorder/ffmpeg-<session-dir>.log`
+- **install.sh**: `/var/log/meeting-recorder/ffmpeg-<session-dir>.log`
+- **Dev mode**: `ffmpeg.log` inside the recording directory
 
 ## License
 
