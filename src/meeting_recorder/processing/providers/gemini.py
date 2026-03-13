@@ -23,9 +23,6 @@ _POLL_TIMEOUT = 300  # 5 minutes
 # Temperature for transcription: 0 = deterministic, sticks closely to spoken words
 _TRANSCRIPTION_TEMPERATURE = 0
 
-# Timeout for generate_content calls in milliseconds (as required by HttpOptions.timeout).
-# Gemini can take several minutes to process long audio before returning any response.
-_GENERATE_TIMEOUT_MS = 180_000  # 3 minutes
 
 # Request the maximum output tokens so long transcripts are never silently truncated.
 # The API caps this at the model's own limit, so it is safe to set high.
@@ -85,11 +82,11 @@ def _require_text(response, context: str) -> str:
     return text.strip()
 
 
-def _wrap_timeout(exc: Exception, context: str) -> Exception:
+def _wrap_timeout(exc: Exception, context: str, timeout_ms: int) -> Exception:
     """Convert httpx/httpcore timeout errors into a readable RuntimeError."""
     name = type(exc).__name__
     if "Timeout" in name or "timeout" in str(exc).lower():
-        minutes = _GENERATE_TIMEOUT_MS // 60_000
+        minutes = timeout_ms // 60_000
         return RuntimeError(
             f"Gemini did not respond within {minutes} minutes ({context}). "
             "The audio may be too long, or Gemini may be overloaded. "
@@ -113,12 +110,14 @@ class GeminiProvider:
         model: str = "gemini-2.5-flash",
         transcription_prompt: str = "",
         summarization_prompt: str = "",
+        timeout_minutes: int = 3,
     ) -> None:
         self._api_key = api_key
         self._model = model
         # Fall back to built-in defaults if no custom prompt is configured.
         self._transcription_prompt = transcription_prompt or GEMINI_TRANSCRIPTION_PROMPT
         self._summarization_prompt = summarization_prompt or SUMMARIZATION_PROMPT
+        self._generate_timeout_ms = timeout_minutes * 60_000
         self._client = None
 
     def _get_client(self):
@@ -170,11 +169,11 @@ class GeminiProvider:
                 config={
                     "temperature": _TRANSCRIPTION_TEMPERATURE,
                     "max_output_tokens": _MAX_OUTPUT_TOKENS,
-                    "http_options": {"timeout": _GENERATE_TIMEOUT_MS},
+                    "http_options": {"timeout": self._generate_timeout_ms},
                 },
             )
         except Exception as exc:
-            raise _wrap_timeout(exc, "transcription") from exc
+            raise _wrap_timeout(exc, "transcription", self._generate_timeout_ms) from exc
         return _require_text(response, "transcription")
 
     # ------------------------------------------------------------------
@@ -203,11 +202,11 @@ class GeminiProvider:
                 contents=[prompt],
                 config={
                     "max_output_tokens": _MAX_OUTPUT_TOKENS,
-                    "http_options": {"timeout": _GENERATE_TIMEOUT_MS},
+                    "http_options": {"timeout": self._generate_timeout_ms},
                 },
             )
         except Exception as exc:
-            raise _wrap_timeout(exc, "summarization") from exc
+            raise _wrap_timeout(exc, "summarization", self._generate_timeout_ms) from exc
         return _require_text(response, "summarization")
 
     # ------------------------------------------------------------------

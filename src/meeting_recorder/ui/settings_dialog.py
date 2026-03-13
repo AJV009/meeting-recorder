@@ -15,6 +15,7 @@ from ..config import settings
 from ..config.defaults import (
     GEMINI_MODELS,
     GEMINI_TRANSCRIPTION_PROMPT,
+    LLM_TIMEOUT_OPTIONS,
     RECORDING_QUALITIES,
     SUMMARIZATION_PROMPT,
     SUMMARIZATION_SERVICES,
@@ -93,6 +94,18 @@ class SettingsDialog(Gtk.Dialog):
         )
         self._gemini_model_combo.connect("changed", self._on_gemini_model_changed)
         grid.attach(self._gemini_model_combo, 1, row, 1, 1)
+        row += 1
+
+        # LLM request timeout
+        grid.attach(Gtk.Label(label="LLM request timeout:", xalign=0), 0, row, 1, 1)
+        self._timeout_combo = Gtk.ComboBoxText()
+        current_timeout = self._cfg.get("llm_request_timeout_minutes", 3)
+        for minutes in LLM_TIMEOUT_OPTIONS:
+            self._timeout_combo.append(str(minutes), f"{minutes} min")
+        self._timeout_combo.set_active_id(str(current_timeout))
+        if self._timeout_combo.get_active_id() is None:
+            self._timeout_combo.set_active_id("3")
+        grid.attach(self._timeout_combo, 1, row, 1, 1)
         row += 1
 
         # Summarization service
@@ -371,6 +384,7 @@ class SettingsDialog(Gtk.Dialog):
         cfg["summarization_service"] = self._ss_combo.get_active_id() or "gemini"
         cfg["gemini_api_key"] = self._gemini_key_entry.get_text().strip()
         cfg["gemini_model"] = self._gemini_model_combo.get_active_id() or GEMINI_MODELS[0]
+        cfg["llm_request_timeout_minutes"] = int(self._timeout_combo.get_active_id() or "3")
         cfg["output_folder"] = self._folder_entry.get_text().strip() or "~/meetings"
         cfg["recording_quality"] = self._quality_combo.get_active_id() or "high"
         cfg["call_detection_enabled"] = self._detection_switch.get_active()

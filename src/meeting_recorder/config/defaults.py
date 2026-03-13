@@ -13,6 +13,9 @@ DEFAULT_OUTPUT_FOLDER = "~/meetings"
 TRANSCRIPTION_SERVICES = ["gemini"]
 SUMMARIZATION_SERVICES = ["gemini"]
 
+# Allowed LLM request timeout values (minutes)
+LLM_TIMEOUT_OPTIONS = [1, 2, 3, 5, 8, 10]
+
 GEMINI_MODELS = [
     "gemini-3.1-pro",
     "gemini-3-pro-preview",
@@ -38,6 +41,8 @@ DEFAULT_CONFIG: dict = {
     "recording_quality": "high",
     "call_detection_enabled": False,
     "start_at_startup": False,
+
+    "llm_request_timeout_minutes": 3,
 
     # Empty string means "use the built-in default prompt".
     # Storing the prompt text directly lets the user revert to the default

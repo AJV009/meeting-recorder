@@ -29,6 +29,7 @@ def create_transcription_provider(config: dict) -> TranscriptionProvider:
             api_key=config["gemini_api_key"],
             model=config.get("gemini_model", "gemini-2.5-flash"),
             transcription_prompt=config.get("transcription_prompt", ""),
+            timeout_minutes=config.get("llm_request_timeout_minutes", 3),
         )
     else:
         raise ValueError(f"Unknown transcription service: {service!r}")
