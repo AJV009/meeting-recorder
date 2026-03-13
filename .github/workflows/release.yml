@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build .deb
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          STAGING=$(mktemp -d)
+
+          # Directory structure
+          mkdir -p "$STAGING/DEBIAN"
+          mkdir -p "$STAGING/opt/meeting-recorder/src"
+          mkdir -p "$STAGING/usr/bin"
+          mkdir -p "$STAGING/usr/share/applications"
+
+          # App source and Python dependencies list
+          cp -r src/. "$STAGING/opt/meeting-recorder/src/"
+          cp requirements.txt "$STAGING/opt/meeting-recorder/"
+
+          # Launcher and desktop entry
+          cp packaging/usr/bin/meeting-recorder "$STAGING/usr/bin/meeting-recorder"
+          chmod 755 "$STAGING/usr/bin/meeting-recorder"
+          cp packaging/usr/share/applications/meeting-recorder.desktop \
+             "$STAGING/usr/share/applications/meeting-recorder.desktop"
+
+          # DEBIAN maintainer scripts
+          for f in postinst prerm postrm; do
+            cp "packaging/DEBIAN/$f" "$STAGING/DEBIAN/$f"
+            chmod 755 "$STAGING/DEBIAN/$f"
+          done
+
+          # Generate control file with version
+          {
+            echo "Package: meeting-recorder"
+            echo "Version: ${VERSION}"
+            echo "Section: utils"
+            echo "Priority: optional"
+            echo "Architecture: all"
+            echo "Depends: python3 (>= 3.10), python3-venv, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, libayatana-appindicator3-1, gir1.2-notify-0.7, libnotify4, libnotify-bin, ffmpeg, pulseaudio-utils, curl"
+            echo "Recommends: pipewire-pulse, libcublas12, libcudart12"
+            echo "Maintainer: Meeting Recorder <noreply@github.com>"
+            echo "Description: Meeting recorder with AI transcription and summarization"
+            echo " Records meetings, transcribes audio using Google Gemini or local Whisper,"
+            echo " and generates structured notes with Gemini or local Ollama."
+          } > "$STAGING/DEBIAN/control"
+
+          dpkg-deb --build "$STAGING" "meeting-recorder_${VERSION}_all.deb"
+
+      - name: Create source tarball
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TARBALL="meeting-recorder_${VERSION}.tar.gz"
+          SRC=$(mktemp -d)
+
+          cp -r . "$SRC/meeting-recorder-${VERSION}"
+          rm -rf \
+            "$SRC/meeting-recorder-${VERSION}/.git" \
+            "$SRC/meeting-recorder-${VERSION}/.claude" \
+            "$SRC/meeting-recorder-${VERSION}/packaging"
+          find "$SRC" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+          find "$SRC" -name '*.pyc' -delete 2>/dev/null || true
+
+          tar -czf "$TARBALL" -C "$SRC" "meeting-recorder-${VERSION}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            meeting-recorder_*.deb
+            meeting-recorder_*.tar.gz
+          generate_release_notes: true
