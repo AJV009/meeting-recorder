@@ -26,7 +26,7 @@ chmod 1777 "$LOG_DIR"
 # Configure apt repository for automatic future updates
 mkdir -p /etc/apt/keyrings
 curl -fsSL "${APT_REPO}/key.gpg" | gpg --dearmor -o "$KEYRING"
-echo "deb [signed-by=${KEYRING}] ${APT_REPO} stable main" > "$SOURCES"
+echo "deb [arch=amd64 signed-by=${KEYRING}] ${APT_REPO} stable main" > "$SOURCES"
 apt-get update -qq 2>/dev/null || true
 
 # Update desktop database
