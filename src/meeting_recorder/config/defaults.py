@@ -87,7 +87,7 @@ DEFAULT_CONFIG: dict = {
     "call_detection_enabled": False,
     "start_at_startup": False,
 
-    "llm_request_timeout_minutes": 3,
+    "llm_request_timeout_minutes": 5,
 
     "whisper_model": "large-v3-turbo",
     "ollama_model": "phi4-mini",
