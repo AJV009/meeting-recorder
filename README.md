@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/meeting_recorder/assets/icons/meeting-recorder-logo.svg" alt="Meeting Recorder" width="128" height="128">
+  <img src="src/meeting_recorder/assets/icons/meeting-recorder-logo-animated.svg" alt="Meeting Recorder" width="128" height="128">
 </p>
 
 <h1 align="center">Meeting Recorder</h1>
