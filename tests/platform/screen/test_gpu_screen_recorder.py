@@ -4,12 +4,22 @@ from pathlib import Path
 
 import pytest
 from meeting_recorder.platform.screen.gpu_screen_recorder import GpuScreenRecorder
-from meeting_recorder.platform.screen.base import MonitorInfo
+from meeting_recorder.platform.screen.base import ScreenRecorder, MonitorInfo
 
 
 @pytest.fixture
 def recorder():
     return GpuScreenRecorder()
+
+
+class TestBaseClasses:
+    def test_monitor_info(self):
+        m = MonitorInfo(name="DP-1", resolution="2560x1440", position="0x0")
+        assert m.name == "DP-1"
+
+    def test_screen_recorder_is_abstract(self):
+        with pytest.raises(TypeError):
+            ScreenRecorder()
 
 
 class TestMonitorDetection:

@@ -74,7 +74,7 @@ def build_platform_tab(cfg: dict, dialog, nightlight_available: bool = False) ->
     # Audio backend
     grid.attach(Gtk.Label(label="Audio backend:", xalign=0), 0, row, 1, 1)
     dialog._audio_backend_combo = Gtk.ComboBoxText()
-    for name in ("pulseaudio", "pipewire"):
+    for name in ("pipewire",):
         dialog._audio_backend_combo.append(name, name)
     dialog._audio_backend_combo.set_active_id(
         cfg.get("audio_backend", "pipewire")
@@ -120,10 +120,10 @@ def build_platform_tab(cfg: dict, dialog, nightlight_available: bool = False) ->
     dialog._screen_recorder_label = Gtk.Label(label="Screen recorder:", xalign=0)
     grid.attach(dialog._screen_recorder_label, 0, row, 1, 1)
     dialog._screen_recorder_combo = Gtk.ComboBoxText()
-    for name in ("gpu-screen-recorder", "none"):
+    for name in ("gpu-screen-recorder",):
         dialog._screen_recorder_combo.append(name, name)
     dialog._screen_recorder_combo.set_active_id(
-        cfg.get("screen_recorder", "none")
+        cfg.get("screen_recorder", "gpu-screen-recorder")
     )
     grid.attach(dialog._screen_recorder_combo, 1, row, 1, 1)
     row += 1

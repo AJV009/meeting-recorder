@@ -30,11 +30,6 @@ class PlatformRegistry:
     def _audio_backends(self) -> dict[str, Type[AudioBackend]]:
         result: dict[str, Type[AudioBackend]] = {}
         try:
-            from .audio.pulseaudio import PulseAudioBackend
-            result["pulseaudio"] = PulseAudioBackend
-        except ImportError:
-            logger.debug("PulseAudio backend not available")
-        try:
             from .audio.pipewire import PipeWireBackend
             result["pipewire"] = PipeWireBackend
         except ImportError:
@@ -43,11 +38,6 @@ class PlatformRegistry:
 
     def _screen_recorders(self) -> dict[str, Type[ScreenRecorder]]:
         result: dict[str, Type[ScreenRecorder]] = {}
-        try:
-            from .screen.none import NoOpScreenRecorder
-            result["none"] = NoOpScreenRecorder
-        except ImportError:
-            pass
         try:
             from .screen.gpu_screen_recorder import GpuScreenRecorder
             result["gpu-screen-recorder"] = GpuScreenRecorder

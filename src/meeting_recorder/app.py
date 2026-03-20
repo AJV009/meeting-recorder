@@ -100,7 +100,7 @@ class MeetingRecorderApp(Gtk.Application):
 
         # Audio backend
         audio_backend = None
-        audio_backend_name = cfg.get("audio_backend", "pulseaudio")
+        audio_backend_name = cfg.get("audio_backend", "pipewire")
         audio_backend_cls = registry.get_audio_backend(audio_backend_name)
         if audio_backend_cls is None:
             available = registry.available_audio_backends()
@@ -112,7 +112,7 @@ class MeetingRecorderApp(Gtk.Application):
         # Screen recorder
         screen_recorder = None
         if cfg.get("screen_recording"):
-            sr_name = cfg.get("screen_recorder", "none")
+            sr_name = cfg.get("screen_recorder", "gpu-screen-recorder")
             sr_cls = registry.get_screen_recorder(sr_name)
             if sr_cls:
                 screen_recorder = sr_cls()
@@ -159,7 +159,7 @@ class MeetingRecorderApp(Gtk.Application):
         if missing:
             msg = (
                 f"Missing system tools: {', '.join(missing)}\n\n"
-                "Please run install.sh to install dependencies."
+                "Install them with: sudo pacman -S ffmpeg pipewire-pulse"
             )
             dialog = Gtk.MessageDialog(
                 transient_for=self.window,

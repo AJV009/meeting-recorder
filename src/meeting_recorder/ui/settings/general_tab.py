@@ -171,7 +171,7 @@ def build_general_tab(cfg: dict, dialog) -> Gtk.Widget:
 
     if not (is_enabled or can_enable):
         note = Gtk.Label(
-            label="Note: To enable autostart, the app must first be installed via install.sh."
+            label="Note: To enable autostart, the app must first be installed (install.sh or AUR package)."
         )
         note.set_line_wrap(True)
         note.set_xalign(0)

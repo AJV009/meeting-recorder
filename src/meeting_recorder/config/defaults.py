@@ -4,7 +4,7 @@ Defines application-wide constants and default configuration settings. This incl
 
 from __future__ import annotations
 
-APP_ID = "com.github.mint-meeting-recorder"
+APP_ID = "io.github.ajv009.meeting-recorder"
 APP_NAME = "Meeting Recorder"
 CONFIG_DIR = "~/.config/meeting-recorder"
 CONFIG_FILE = "~/.config/meeting-recorder/config.json"
@@ -124,7 +124,7 @@ DEFAULT_CONFIG: dict = {
     # Platform
     "audio_backend": "pipewire",
     "screen_recording": False,
-    "screen_recorder": "none",
+    "screen_recorder": "gpu-screen-recorder",
     "monitors": "all",
     "screen_fps": 30,
     "merge_screen_audio": False,

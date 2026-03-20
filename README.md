@@ -1,6 +1,11 @@
 # Meeting Recorder
 
+[![AUR version](https://img.shields.io/aur/version/meeting-recorder)](https://aur.archlinux.org/packages/meeting-recorder)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A Linux desktop applet that records meetings, transcribes them, and generates structured notes — all in a few clicks. Supports both cloud and local processing, with 100+ AI providers via LiteLLM.
+
+**Arch Linux** | PipeWire + Wayland | GTK3
 
 ## Features
 
@@ -9,11 +14,10 @@ A Linux desktop applet that records meetings, transcribes them, and generates st
 - **Summarize** with Claude Code CLI (subscription), or any LLM via LiteLLM (Gemini, Ollama, OpenAI, Anthropic, OpenRouter, etc.)
 - **LiteLLM integration** — unified access to 100+ LLM providers with a single model string
 - **Local models** — run fully offline with Whisper + Ollama, no API key required
-- **Multi-platform** — Debian/Ubuntu (PulseAudio) and Arch Linux (PipeWire/Wayland)
 - **Screen recording** — per-monitor Wayland-native recording via gpu-screen-recorder
 - **API key store** — manage all provider API keys in Settings
 - **Customizable prompts** — edit transcription and summarization prompts in Settings
-- **System tray** integration (AppIndicator / pystray fallback) with custom icon and recording indicator
+- **System tray** integration (StatusNotifierItem / pystray fallback) with custom icon and recording indicator
 - **Call detection** — optionally monitor for active calls and get notified to start recording
 - **Start at system startup** — optionally launch automatically on login
 - **Organized output** — files saved in a dated hierarchy under your chosen output folder
@@ -40,16 +44,8 @@ When using "Use Existing Recording", transcript and notes are saved next to the 
 
 ## Requirements
 
-### Debian/Ubuntu
-
-- Debian/Ubuntu-based Linux (tested on Ubuntu 22.04+)
-- System packages installed by `install.sh`: `ffmpeg`, `pulseaudio-utils`, `pipewire-pulse`, Python 3 with GTK3 bindings
-- Python packages (installed into a venv): see `requirements.txt`
-
-### Arch Linux
-
-- Arch Linux with KDE Plasma / Wayland (tested on Plasma 6)
-- System packages installed by `install/install-arch.sh`: `ffmpeg`, `pipewire`, `pipewire-pulse`, `wireplumber`, Python 3 with GTK3 bindings
+- Arch Linux with PipeWire (tested on KDE Plasma 6 / Wayland)
+- System packages: `ffmpeg`, `pipewire`, `pipewire-pulse`, `wireplumber`, Python 3 with GTK3 bindings
 - Optional: `gpu-screen-recorder` (AUR) for screen recording
 
 ### Provider Requirements
@@ -58,44 +54,27 @@ When using "Use Existing Recording", transcript and notes are saved next to the 
 |---|---|
 | **Gemini** (transcription or summarization via LiteLLM) | API key from [aistudio.google.com](https://aistudio.google.com) |
 | **ElevenLabs Scribe v2** (transcription) | API key from [elevenlabs.io](https://elevenlabs.io) |
-| **Whisper** (local transcription) | Model downloaded from HuggingFace (~500 MB – 3 GB); NVIDIA GPU optional |
+| **Whisper** (local transcription) | Model downloaded from HuggingFace (~500 MB - 3 GB); NVIDIA GPU optional |
 | **Ollama** (local summarization via LiteLLM) | [Ollama](https://ollama.com) installed and running (`ollama serve`) |
 | **Claude Code CLI** (summarization) | [Claude Code](https://claude.ai/claude-code) installed and on PATH |
-| **LiteLLM** (any other provider) | Appropriate API key set in Settings → API Keys |
+| **LiteLLM** (any other provider) | Appropriate API key set in Settings -> API Keys |
 
 ## Installation
 
-### Option 1: .deb package (Debian/Ubuntu, recommended)
-
-Download the latest `.deb` from the [Releases](../../releases) page and install it:
+### Option 1: AUR (recommended)
 
 ```bash
-sudo dpkg -i meeting-recorder_*.deb
-sudo apt-get install -f   # installs any missing dependencies
+yay -S meeting-recorder
+# or
+paru -S meeting-recorder
 ```
 
-The installer sets up all system dependencies, creates a Python venv at `/opt/meeting-recorder/venv`, and installs Ollama if not already present.
-
-To uninstall:
+### Option 2: From source
 
 ```bash
-sudo apt remove meeting-recorder
-```
-
-### Option 2: install.sh (Debian/Ubuntu, from source)
-
-```bash
-git clone <repo-url>
+git clone https://github.com/AJV009/meeting-recorder.git
 cd meeting-recorder
 ./install.sh
-```
-
-### Option 3: install-arch.sh (Arch Linux)
-
-```bash
-git clone <repo-url>
-cd meeting-recorder
-install/install-arch.sh
 ```
 
 Installs system deps via pacman, sets up a Python venv via uv, and auto-installs gpu-screen-recorder from AUR if yay/paru is available.
@@ -108,25 +87,19 @@ Installs system deps via pacman, sets up a Python venv via uv, and auto-installs
 
 > Your recordings (`~/meetings/`) and config (`~/.config/meeting-recorder/`) are preserved.
 
-Then launch either way:
+Then launch:
 
 ```bash
 meeting-recorder
 # or from your application menu: "Meeting Recorder"
 ```
 
-> **GNOME users:** System tray requires the AppIndicator extension:
-> ```bash
-> sudo apt install gnome-shell-extension-appindicator
-> gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
-> ```
-
-## Running from Source
+## Running from Source (development)
 
 ```bash
 cd meeting-recorder
 python3 -m venv .venv --system-site-packages
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -e ".[dev]"
 PYTHONPATH=src python3 -m meeting_recorder
 ```
 
@@ -145,7 +118,7 @@ PYTHONPATH=src python3 -m meeting_recorder
 |---|---|---|
 | **Google Gemini** | Audio uploaded directly to Gemini multimodal API | API key |
 | **ElevenLabs Scribe v2** | Audio sent to ElevenLabs API, native diarization (up to 32 speakers) | API key |
-| **Whisper** | Runs locally on your machine via faster-whisper | Model downloaded in Settings → Model Config |
+| **Whisper** | Runs locally on your machine via faster-whisper | Model downloaded in Settings -> Model Config |
 | **LiteLLM** | Routes to any supported STT provider (Groq, OpenAI, Deepgram, etc.) | Provider API key |
 
 ### Summarization
@@ -177,7 +150,7 @@ Select from curated lists in Settings, or type any `provider/model` string.
 Open **Settings** (gear icon or tray menu):
 
 1. **General tab** — choose your transcription and summarization providers; set output folder and recording quality. When LiteLLM is selected, a model dropdown with free-text entry appears.
-2. **Platform tab** — choose audio backend (PulseAudio/PipeWire), enable separate audio tracks, configure screen recording.
+2. **Platform tab** — audio backend (PipeWire), enable separate audio tracks, configure screen recording.
 3. **Model Config tab** — configure direct provider models:
    - *Gemini*: choose a model
    - *Whisper*: select a model and click Download
@@ -196,7 +169,7 @@ Open **Settings** (gear icon or tray menu):
 | LiteLLM model | Model string (visible when LiteLLM selected) — curated list + free-text entry |
 | Output folder | Where recordings and notes are saved (default: `~/meetings`) |
 | Recording quality | Audio bitrate preset (Very High / High / Medium / Low) |
-| Processing timeout | Max time to wait for provider response (1–10 min) |
+| Processing timeout | Max time to wait for provider response (1-10 min) |
 | Start at system startup | Launch automatically on login |
 | Enable call detection | Monitor for active calls and notify you to start recording |
 
@@ -204,12 +177,12 @@ Open **Settings** (gear icon or tray menu):
 
 | Setting | Description |
 |---|---|
-| Audio backend | PulseAudio or PipeWire |
+| Audio backend | PipeWire |
 | Separate audio tracks | Record mic and system audio as independent files |
 | Screen recording | Enable per-monitor screen recording (requires gpu-screen-recorder) |
-| Screen recorder | gpu-screen-recorder or none |
+| Screen recorder | gpu-screen-recorder |
 | Monitors | "all" or comma-separated monitor names |
-| FPS | Screen recording frame rate (1–60) |
+| FPS | Screen recording frame rate (1-60) |
 
 ### Model Config tab
 
@@ -308,8 +281,8 @@ Application logs:
 ## Development
 
 ```bash
-pip install -r requirements-dev.txt
-python -m pytest tests/ -v   # 54 tests
+pip install -e ".[dev]"
+python -m pytest tests/ -v
 ```
 
 ## License

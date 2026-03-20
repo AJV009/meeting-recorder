@@ -4,7 +4,6 @@ System tray icon — thin wrapper delegating to platform tray backends.
 Priority:
 1. SNI (pure DBus StatusNotifierItem) — KDE Plasma native, supports left-click
 2. pystray — cross-platform fallback
-3. AppIndicator — legacy fallback
 """
 from __future__ import annotations
 
@@ -58,14 +57,6 @@ class TrayIcon:
             self._impl = PystrayBackend(window)
             logger.debug("Using pystray tray backend")
             return
-        except Exception:
-            logger.debug("pystray not available, trying AppIndicator")
-
-        # Fall back to AppIndicator
-        try:
-            from ..platform.tray.appindicator import AppIndicatorTray
-            self._impl = AppIndicatorTray(window)
-            logger.debug("Using AppIndicator tray backend")
         except Exception:
             logger.warning("No tray backend available")
 

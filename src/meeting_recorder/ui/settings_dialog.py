@@ -126,7 +126,7 @@ class SettingsDialog(Gtk.Dialog):
         cfg["audio_backend"] = self._audio_backend_combo.get_active_id() or "pipewire"
         cfg["separate_audio_tracks"] = self._separate_tracks_switch.get_active()
         cfg["screen_recording"] = self._screen_recording_switch.get_active()
-        cfg["screen_recorder"] = self._screen_recorder_combo.get_active_id() or "none"
+        cfg["screen_recorder"] = self._screen_recorder_combo.get_active_id() or "gpu-screen-recorder"
         cfg["monitors"] = self._get_selected_monitors()
         cfg["merge_screen_audio"] = self._merge_screen_check.get_active()
         cfg["screen_fps"] = int(self._fps_spin.get_value())

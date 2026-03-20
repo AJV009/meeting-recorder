@@ -1,26 +1,17 @@
-name: Release
+# Release workflow — triggered by pushing a version tag
+#
+# One-time setup required:
+#   1. Register the 'meeting-recorder' package on https://aur.archlinux.org
+#   2. Generate an SSH key pair for AUR:
+#        ssh-keygen -t ed25519 -f aur_key -N ""
+#   3. Add the public key to your AUR account:
+#        https://aur.archlinux.org/account/ → SSH Public Key
+#   4. Add the private key as a GitHub repository secret:
+#        Repository → Settings → Secrets → Actions → New secret
+#        Name: AUR_SSH_PRIVATE_KEY
+#        Value: contents of aur_key (then delete both key files)
 
-# Triggered by pushing a version tag, e.g.: git tag v1.0.0 && git push origin v1.0.0
-#
-# One-time setup required before this workflow will work:
-#   1. Generate a GPG signing key (run once locally):
-#        gpg --batch --gen-key <<EOF
-#        Key-Type: RSA
-#        Key-Length: 4096
-#        Name-Real: Meeting Recorder
-#        Name-Email: noreply@github.com
-#        Expire-Date: 0
-#        %no-passphrase
-#        EOF
-#        gpg --armor --export-secret-keys "Meeting Recorder" > private.key
-#
-#   2. Add the private key as a repository secret:
-#        GitHub repo → Settings → Secrets → Actions → New secret
-#        Name: APT_SIGNING_KEY
-#        Value: contents of private.key (then delete private.key)
-#
-#   3. Enable GitHub Pages:
-#        GitHub repo → Settings → Pages → Source: Deploy from branch → Branch: gh-pages
+name: Release
 
 on:
   push:
@@ -28,146 +19,74 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install and test
+        run: |
+          pip install .[dev]
+          pytest tests/ -v
+
   release:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Get version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Install build tools
-        run: sudo apt-get install -y reprepro
-
-      - name: Import GPG signing key
-        id: gpg
-        env:
-          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+      - name: Build wheel and source dist
         run: |
-          echo "$APT_SIGNING_KEY" | gpg --batch --import
-          FINGERPRINT=$(gpg --list-secret-keys --with-colons | grep '^fpr' | head -1 | cut -d: -f10)
-          echo "${FINGERPRINT}:6:" | gpg --import-ownertrust
-          echo "FINGERPRINT=${FINGERPRINT}" >> "$GITHUB_OUTPUT"
-
-      - name: Build .deb
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          STAGING=$(mktemp -d)
-
-          # Directory structure
-          mkdir -p "$STAGING/DEBIAN"
-          mkdir -p "$STAGING/opt/meeting-recorder/src"
-          mkdir -p "$STAGING/usr/bin"
-          mkdir -p "$STAGING/usr/share/applications"
-
-          # App source and Python dependencies list
-          cp -r src/. "$STAGING/opt/meeting-recorder/src/"
-          cp requirements.txt "$STAGING/opt/meeting-recorder/"
-
-          # Launcher and desktop entry
-          cp packaging/usr/bin/meeting-recorder "$STAGING/usr/bin/meeting-recorder"
-          chmod 755 "$STAGING/usr/bin/meeting-recorder"
-          cp packaging/usr/share/applications/meeting-recorder.desktop \
-             "$STAGING/usr/share/applications/meeting-recorder.desktop"
-
-          # DEBIAN maintainer scripts
-          for f in postinst prerm postrm; do
-            cp "packaging/DEBIAN/$f" "$STAGING/DEBIAN/$f"
-            chmod 755 "$STAGING/DEBIAN/$f"
-          done
-
-          # Generate control file with version
-          {
-            echo "Package: meeting-recorder"
-            echo "Version: ${VERSION}"
-            echo "Section: utils"
-            echo "Priority: optional"
-            echo "Architecture: all"
-            echo "Depends: python3 (>= 3.10), python3-venv, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, libayatana-appindicator3-1, gir1.2-notify-0.7, libnotify4, libnotify-bin, ffmpeg, pulseaudio-utils, curl"
-            echo "Recommends: pipewire-pulse, libcublas12, libcudart12"
-            echo "Maintainer: Meeting Recorder <noreply@github.com>"
-            echo "Description: Meeting recorder with AI transcription and summarization"
-            echo " Records meetings, transcribes audio using Google Gemini or local Whisper,"
-            echo " and generates structured notes with Gemini or local Ollama."
-          } > "$STAGING/DEBIAN/control"
-
-          dpkg-deb --build "$STAGING" "meeting-recorder_${VERSION}_all.deb"
-
-      - name: Update apt repository on gh-pages
-        env:
-          FINGERPRINT: ${{ steps.gpg.outputs.FINGERPRINT }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          DEB="meeting-recorder_${VERSION}_all.deb"
-          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-
-          # Clone gh-pages branch if it exists, otherwise initialise a new one
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            git clone --depth 1 --branch gh-pages "$REPO_URL" gh-pages-dir
-          else
-            mkdir gh-pages-dir
-            cd gh-pages-dir
-            git init
-            git remote add origin "$REPO_URL"
-            git checkout -b gh-pages
-            cd ..
-          fi
-
-          cd gh-pages-dir
-
-          # reprepro configuration
-          mkdir -p conf
-          {
-            echo "Origin: Meeting Recorder"
-            echo "Label: Meeting Recorder"
-            echo "Codename: stable"
-            echo "Architectures: amd64"
-            echo "Components: main"
-            echo "Description: Meeting Recorder APT repository"
-            echo "SignWith: ${FINGERPRINT}"
-          } > conf/distributions
-
-          # Export public key for users
-          gpg --armor --export "$FINGERPRINT" | gpg --dearmor > key.gpg
-
-          # Remove previous version and add new .deb
-          reprepro -b . remove stable meeting-recorder 2>/dev/null || true
-          reprepro -b . includedeb stable "../${DEB}"
-
-          # Commit and push
-          git config user.email "github-actions@github.com"
-          git config user.name "GitHub Actions"
-          git add -A
-          git commit -m "Release v${VERSION}"
-          git push origin gh-pages
+          pip install build
+          python -m build
 
       - name: Create source tarball
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          SRC=$(mktemp -d)
-
-          cp -r . "$SRC/meeting-recorder-${VERSION}"
-          rm -rf \
-            "$SRC/meeting-recorder-${VERSION}/.git" \
-            "$SRC/meeting-recorder-${VERSION}/.claude" \
-            "$SRC/meeting-recorder-${VERSION}/packaging" \
-            "$SRC/meeting-recorder-${VERSION}/gh-pages-dir"
-          find "$SRC" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
-          find "$SRC" -name '*.pyc' -delete 2>/dev/null || true
-
-          tar -czf "meeting-recorder_${VERSION}.tar.gz" -C "$SRC" "meeting-recorder-${VERSION}"
+          git archive --format=tar.gz --prefix="meeting-recorder-${VERSION}/" \
+            -o "meeting-recorder-${VERSION}.tar.gz" HEAD
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            meeting-recorder_*.deb
-            meeting-recorder_*.tar.gz
+            dist/*.whl
+            meeting-recorder-*.tar.gz
           generate_release_notes: true
+
+  aur-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ vars.AUR_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update PKGBUILD version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+
+      - name: Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: meeting-recorder
+          pkgbuild: ./PKGBUILD
+          commit_username: "AJV009"
+          commit_email: "noreply@github.com"
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
