@@ -37,12 +37,17 @@ class MeetingRecorderApp(Gtk.Application):
     def __init__(self) -> None:
         super().__init__(
             application_id=APP_ID,
-            flags=Gio.ApplicationFlags.FLAGS_NONE,
+            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
         )
         self.window = None
         self._tray = None
         self._call_detector = None
         self._nightlight_inhibitor = None
+        self._minimized = False
+        self.add_main_option(
+            "minimized", 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
+            "Start minimized to system tray", None,
+        )
 
     # ------------------------------------------------------------------
     def do_startup(self) -> None:
@@ -82,10 +87,18 @@ class MeetingRecorderApp(Gtk.Application):
             "Logging to %s", log_file
         )
 
+    def do_command_line(self, command_line) -> int:
+        options = command_line.get_options_dict()
+        if options.contains("minimized"):
+            self._minimized = True
+        self.activate()
+        return 0
+
     def do_activate(self) -> None:
         if self.window is None:
             self._create_window()
-        self.window.present()
+        if not self._minimized:
+            self.window.present()
 
     # ------------------------------------------------------------------
     def _create_window(self) -> None:
@@ -150,6 +163,8 @@ class MeetingRecorderApp(Gtk.Application):
             self._start_call_detector()
 
         self.window.show_all()
+        if self._minimized:
+            self.window.hide()
 
         # Validate system deps after window shown so errors display nicely
         GLib.idle_add(self._validate_system_deps)

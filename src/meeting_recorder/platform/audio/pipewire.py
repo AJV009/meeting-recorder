@@ -4,6 +4,7 @@ import logging
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from .base import AudioBackend, AudioDevice, CaptureOutputPaths
@@ -96,6 +97,7 @@ class PipeWireBackend(AudioBackend):
             raise RuntimeError("No default audio source found")
 
         mic_cmd = [
+            "nice", "-n", "15",
             "ffmpeg", "-y",
             "-f", "pulse", "-i", source,
             "-af", "highpass=f=80",
@@ -112,11 +114,14 @@ class PipeWireBackend(AudioBackend):
             if sink:
                 monitor = f"{sink}.monitor"
                 sys_cmd = [
+                    "nice", "-n", "15",
                     "ffmpeg", "-y",
                     "-f", "pulse", "-i", monitor,
                     "-acodec", "libmp3lame", "-q:a", quality,
                     str(output_paths.system),
                 ]
+                # Stagger launch so two MP3 encoder inits don't overlap
+                time.sleep(0.3)
                 self._sys_proc = subprocess.Popen(
                     sys_cmd, stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

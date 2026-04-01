@@ -67,7 +67,7 @@ cat > "$HOME/.local/share/applications/meeting-recorder.desktop" << DESKTOP
 Type=Application
 Name=Meeting Recorder
 Comment=Record, transcribe and summarize meetings
-Exec=$HOME/.local/bin/meeting-recorder
+Exec=$HOME/.local/bin/meeting-recorder --minimized
 Icon=$INSTALL_DIR/src/meeting_recorder/assets/icons/meeting-recorder.svg
 Terminal=false
 Categories=AudioVideo;Audio;Utility;

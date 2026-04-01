@@ -36,6 +36,7 @@ class GpuScreenRecorder(ScreenRecorder):
         for monitor in monitors:
             output_file = output_dir / f"screen-{monitor}.mp4"
             cmd = [
+                "nice", "-n", "15",
                 "gpu-screen-recorder",
                 "-w", monitor,
                 "-f", str(fps),

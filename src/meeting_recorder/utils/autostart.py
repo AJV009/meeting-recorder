@@ -34,7 +34,17 @@ def update_autostart(enabled: bool) -> None:
         if source_desktop.exists():
             try:
                 shutil.copy2(source_desktop, autostart_file)
-                logger.info("Enabled autostart: copied %s to %s", source_desktop, autostart_file)
+                # Append --minimized so autostart launches to tray
+                content = autostart_file.read_text()
+                content = content.replace(
+                    "Exec=", "Exec=", 1  # no-op anchor for clarity
+                )
+                for line in content.splitlines():
+                    if line.startswith("Exec=") and "--minimized" not in line:
+                        content = content.replace(line, f"{line} --minimized", 1)
+                        break
+                autostart_file.write_text(content)
+                logger.info("Enabled autostart: copied %s to %s (with --minimized)", source_desktop, autostart_file)
             except Exception as exc:
                 logger.error("Failed to enable autostart: %s", exc)
         else:

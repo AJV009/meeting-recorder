@@ -2,7 +2,7 @@
 Type=Application
 Name=Meeting Recorder
 Comment=Record, transcribe and summarize meetings
-Exec=meeting-recorder
+Exec=meeting-recorder --minimized
 Icon=meeting-recorder
 Terminal=false
 Categories=AudioVideo;Audio;Utility;
